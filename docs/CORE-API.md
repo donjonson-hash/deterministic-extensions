@@ -5,6 +5,27 @@ inputs are explicit; they read no clock, locale, network, storage or random
 source. Invalid session state throws; invalid commands return a rejection.
 Nothing here executes uploaded code or proves the semantic correctness of text.
 
+## Shared UTF-8 codec
+
+`utf8.mjs` is the policy-free conversion layer, identified by
+`UTF8_CODEC_VERSION = 'utf8-v1'`. It can be copied unchanged into a product
+adapter with source revision and checksum recorded by that product.
+
+- `decodeUtf8Bytes(bytes)` accepts only `Uint8Array`, including an offset view,
+  and returns `{raw, bom}`. Invalid UTF-8 throws `TypeError`; no replacement
+  decoding is performed. Exactly one initial UTF-8 BOM is separated from text.
+- `encodeUtf8Text(raw, bom = false)` requires a string and a boolean and returns
+  fresh UTF-8 bytes. It follows standard `TextEncoder` behavior, including
+  replacing unpaired UTF-16 surrogates with U+FFFD. It does not enforce a
+  lossless document policy for arbitrary JavaScript strings.
+
+The codec imposes no size, line, NUL or well-formed-string policy and performs
+no line-ending normalization. Callers must apply their product's limits before
+decoding or storing data. `documents.mjs` remains the strict adapter: it rejects
+unpaired surrogates and preserves all existing limits, error codes and document
+semantics. A different product can keep its existing validation and messages
+while using the same byte conversion code.
+
 ## Documents
 
 `makeDocument(raw = '', bom = false)` returns a detached frozen `{raw, bom}`.

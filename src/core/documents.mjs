@@ -1,4 +1,5 @@
 import {canonicalJson} from './canonical.mjs';
+import {decodeUtf8Bytes, encodeUtf8Text} from './utf8.mjs';
 
 export const DOCUMENT_LIMITS = Object.freeze({maxBytes: 1048576, maxCodeUnits: 200000, maxLines: 4000});
 const encoder = new TextEncoder();
@@ -31,23 +32,16 @@ export function makeDocument(raw = '', bom = false) {
 export function decodeUtf8(bytes) {
   if (!(bytes instanceof Uint8Array)) throw invalid('decodeUtf8 requires Uint8Array bytes');
   if (bytes.byteLength > DOCUMENT_LIMITS.maxBytes) throw limit('File exceeds the UTF-8 byte limit');
-  const bom = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
-  let raw;
+  let decoded;
   try {
-    // Remove only the file marker. Any subsequent U+FEFF belongs to the document.
-    raw = new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(bom ? bytes.subarray(3) : bytes);
+    decoded = decodeUtf8Bytes(bytes);
   } catch { throw invalid('File is not valid UTF-8'); }
-  return makeDocument(raw, bom);
+  return makeDocument(decoded.raw, decoded.bom);
 }
 
 export function encodeUtf8(document) {
   validateDocument(document);
-  const text = encoder.encode(document.raw);
-  if (!document.bom) return text;
-  const bytes = new Uint8Array(text.length + 3);
-  bytes.set([0xef, 0xbb, 0xbf]);
-  bytes.set(text, 3);
-  return bytes;
+  return encodeUtf8Text(document.raw, document.bom);
 }
 
 export function sameDocument(a, b) {
