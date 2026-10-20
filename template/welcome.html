@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>Welcome — Deterministic Extensions</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="welcome">
+    <a class="brand" href="app.html"><span class="brand-mark" aria-hidden="true">D</span> Deterministic Extensions</a>
+    <p class="eyebrow">REFERENCE EXTENSION · 0.1.0</p>
+    <h1>Same input.<br>Repeatable result.</h1>
+    <p class="intro">A small local workspace that shows how guarded commands, exact downloads and predictable comparison work together.</p>
+    <a id="open-editor" class="button primary" href="app.html">Open text review →</a>
+    <div class="welcome-steps">
+      <article><span>01</span><h2>Open two files</h2><p>Choose UTF-8 text files as A and B, or load the built-in example.</p></article>
+      <article><span>02</span><h2>Review and edit</h2><p>Compare matching line numbers. Use all of A in B, then try Undo and Redo.</p></article>
+      <article><span>03</span><h2>Save your result</h2><p>Download B. Untouched files retain their original UTF-8 bytes, BOM and line endings.</p></article>
+    </div>
+    <p class="note">This example compares lines by their position. It does not align moved lines or produce a minimal diff, and it does not check syntax. Manual text edits use LF line endings. Work stays in this tab's memory and is lost when the tab is closed or reloaded.</p>
+    <p class="note">No account, AI service, telemetry or network connection is required. Use <strong>Getting started</strong> in the editor to reopen this page.</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>Text Review — Deterministic Extensions</title>
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="welcome.html" target="_blank" rel="noopener noreferrer"><span class="brand-mark" aria-hidden="true">D</span> Deterministic Extensions</a><span class="local-badge">LOCAL · NO AI</span></header>
+  <main>
+    <section class="heading"><div><p class="eyebrow">REFERENCE EXTENSION · 0.1.0</p><h1>Text review</h1><p>Open two versions. Review the changes. Save a copy.</p></div><button id="example" type="button">Load example</button></section>
+    <div class="policy"><label><input id="ignore-trailing" type="checkbox"> Ignore spaces and tabs at line ends</label><span>Comparison: matching line numbers · no moved-line alignment</span></div>
+    <section class="editors" aria-label="Text versions">
+      <article class="editor-card"><div class="editor-heading"><div><span class="letter">A</span><h2>Reference</h2></div><label class="file-button">Open A<input id="file-a" type="file" aria-label="Open file A"></label></div><p id="name-a" class="file-name">No file selected</p><label class="sr-only" for="text-a">Text A, read-only reference</label><textarea id="text-a" readonly spellcheck="false" placeholder="Open a UTF-8 text file or load the example"></textarea><p id="meta-a" class="meta">0 characters</p></article>
+      <article class="editor-card"><div class="editor-heading"><div><span class="letter letter-b">B</span><h2>Working copy</h2></div><label class="file-button">Open B<input id="file-b" type="file" aria-label="Open file B"></label></div><p id="name-b" class="file-name">No file selected</p><label class="sr-only" for="text-b">Text B, editable working copy</label><textarea id="text-b" spellcheck="false" placeholder="Open a file or type text here"></textarea><p id="meta-b" class="meta">0 characters</p></article>
+    </section>
+    <div class="toolbar"><div><button id="use-a" type="button">Use all of A in B →</button><button id="undo" type="button" disabled>Undo</button><button id="redo" type="button" disabled>Redo</button></div><button id="download-b" class="primary" type="button">Download B</button></div>
+    <p id="status" class="status" role="status" aria-live="polite">Ready. Files are processed in this tab.</p>
+    <p class="note">Imported bytes stay unchanged until an edit. Typing in B uses LF line endings and keeps B's BOM. “Use all of A” copies A's exact text and BOM. Undo restores B's prior bytes. Download before closing or reloading.</p>
+    <section class="comparison" aria-labelledby="comparison-title"><div class="comparison-heading"><div><p class="eyebrow">CURRENT COMPARISON</p><h2 id="comparison-title">Waiting for comparison…</h2></div><span id="revision" class="revision">Revision 0</span></div><p id="format-note" class="note" hidden></p><p id="worker-status" class="note" role="status">Starting local worker…</p><div id="change-list" class="change-list"></div></section>
+  </main>
+  <footer><span>Deterministic Extensions · text review template</span><a id="getting-started" href="welcome.html" target="_blank" rel="noopener noreferrer">Getting started</a></footer>
+</body>
+</html>
