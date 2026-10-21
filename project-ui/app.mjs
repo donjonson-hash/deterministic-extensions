@@ -22,10 +22,18 @@ function controls() {
   const editable = current?.state === 'ready' || prepared;
   $('refresh').disabled = !token || busy;
   for (const id of ['proposal-file', 'proposal-json', 'template', 'prepare']) $(id).disabled = !available || !editable;
+  $('prepare').disabled ||= Boolean(current?.proposal && !draftDirty);
+  $('discard-draft').hidden = !draftDirty || !current?.proposal;
+  $('discard-draft').disabled = !available;
   $('run-checks').disabled = !available || !prepared || draftDirty || !current?.checks?.length;
   $('publish').disabled = !available || !prepared || draftDirty || (current?.checks ?? []).some((check) => check.status !== 'passed');
   $('undo').disabled = !available || current?.state !== 'published';
   $('redo').disabled = !available || current?.state !== 'undone';
+  $('workflow-hint').textContent = draftDirty ? 'Черновик изменён. Подготовьте его или вернитесь к уже подготовленному набору.'
+    : current?.state === 'published' ? 'Ветка создана. Теперь можно отменить её создание.'
+    : current?.state === 'undone' ? 'Создание ветки отменено. Теперь можно восстановить тот же результат.'
+    : prepared ? `Подготовлено файлов: ${current.proposal.changes.length}. Просмотрите их ниже, затем запустите проверки.`
+    : 'Загрузите JSON задачи, чтобы подготовить изменения.';
   for (const button of $('file-list').querySelectorAll('button')) button.disabled = busy;
   document.body.setAttribute('aria-busy', String(busy));
 }
@@ -51,7 +59,7 @@ async function act(pending, action, success) {
   message(pending);
   try {
     await action();
-    message(success, 'success');
+    message(typeof success === 'function' ? success() : success, 'success');
   } catch (error) {
     message(`Не выполнено: ${error.message} При изменении проекта обновите состояние. Набор изменений автоматически не исправляется.`, 'error');
   } finally {
@@ -73,7 +81,10 @@ function showFile(path) {
 }
 
 function render(next) {
+  const firstLoad = !current;
   current = next;
+  if (firstLoad) $('proposal-editor').open = !current.proposal;
+  if (current.proposal && !draftDirty) restoreProposalText();
   document.body.dataset.state = current.state;
   $('project-path').textContent = current.projectPath;
   $('base-commit').textContent = current.baseCommit;
@@ -133,6 +144,22 @@ function render(next) {
   controls();
 }
 
+function restoreProposalText() {
+  const proposal = current.proposal;
+  $('proposal-json').value = JSON.stringify({schemaVersion:1, id:proposal.id, title:proposal.title,
+    baseCommit:current.baseCommit, changes:proposal.changes.map(change => change.after === null
+      ? {path:change.path,operation:'delete'} : {path:change.path,operation:'write',text:change.after})}, null, 2);
+}
+
+$('discard-draft').addEventListener('click', () => {
+  if (busy || !current?.proposal) return;
+  draftDirty = false;
+  restoreProposalText();
+  $('proposal-editor').open = false;
+  controls();
+  message('Черновик отброшен. Подготовленный набор сохранён; можно продолжить проверки.', 'success');
+});
+
 $('refresh').addEventListener('click', () => act('Обновляем состояние…', async () => render(await api('status')), 'Состояние проекта обновлено.'));
 $('template').addEventListener('click', () => {
   if (busy || !current) return;
@@ -163,9 +190,13 @@ $('proposal-file').addEventListener('change', (event) => {
 $('prepare').addEventListener('click', () => act('Проверяем набор и готовим временную копию…', async () => {
   let proposal;
   try { proposal = JSON.parse($('proposal-json').value); } catch { throw new Error('Набор изменений должен быть корректным JSON.'); }
+  if (Array.isArray(proposal?.changes) && !proposal.changes.length) {
+    throw new Error('В changes нет изменений. Добавьте файлы или нажмите «Вернуться к подготовленному набору».');
+  }
   const next = await api('prepare', proposal);
   draftDirty = false;
   render(next);
+  $('proposal-editor').open = false;
 }, 'Набор подготовлен. Просмотрите каждый изменённый файл перед созданием ветки.'));
 $('run-checks').addEventListener('click', () => act('Выполняются локальные проверки. Дождитесь результата…', async () => {
   render(await api('check', { expectedDigest: current.proposal?.digest }));
@@ -181,5 +212,7 @@ if (!token) {
   $('state').textContent = 'Нужна ссылка запуска';
   message('Откройте полную ссылку из терминала локального сервера. Ключ доступа хранится только в памяти страницы; после перезагрузки откройте исходную ссылку снова.', 'error');
 } else {
-  await act('Получаем состояние локального проекта…', async () => render(await api('status')), 'Проект подключён. Загрузите JSON с изменениями или заполните шаблон.');
+  await act('Получаем состояние локального проекта…', async () => render(await api('status')), () => current.proposal
+    ? `Набор из ${current.proposal.changes.length} файлов уже подготовлен. Просмотрите файлы и запустите проверки на панели действий.`
+    : 'Проект подключён. Загрузите JSON с изменениями или заполните шаблон.');
 }

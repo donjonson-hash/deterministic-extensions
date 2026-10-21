@@ -67,3 +67,13 @@ footer { padding: 2px 6px 14px; max-width: 1000px; font-size: .8rem; color: #728
 [hidden] { display: none !important; }
 @media (max-width: 900px) { .project-card { grid-template-columns: 1fr; gap: 12px; } .state { justify-self: start; } .review-layout { grid-template-columns: 1fr; } #file-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 240px; overflow: auto; } .page-header { display: block; } .page-header > button { margin-bottom: 20px; } }
 @media (max-width: 600px) { main { padding: 24px 14px; } .card { padding: 18px 14px; } .project-card { padding: 18px; } .code-columns { grid-template-columns: minmax(0, 1fr); } .code-columns section + section { border-left: 0; border-top: 1px solid var(--line); } .toolbar button, .toolbar .file-picker { width: 100%; justify-content: center; } .eyebrow .pill { margin-left: 0; margin-top: 8px; } pre { max-height: 350px; } }
+
+.workflow { position: sticky; top: 0; z-index: 2; padding: 16px 20px; box-shadow: 0 3px 12px #17353d15; }
+.workflow h2 { font-size: 1rem; }
+.workflow p { margin: 5px 0; color: #52676e; font-size: .9rem; }
+.workflow .toolbar { margin: 10px 0 0; }
+.review-link { color: var(--accent); font-weight: 650; padding: 9px 6px; }
+#proposal-editor > summary { font-weight: 650; }
+#proposal-editor[open] > summary { margin-bottom: 22px; }
+#review { scroll-margin-top: 210px; }
+@media (max-width: 900px) { .workflow { position: static; } #review { scroll-margin-top: 16px; } }

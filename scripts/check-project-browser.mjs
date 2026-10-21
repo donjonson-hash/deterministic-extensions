@@ -28,14 +28,43 @@ try {
   browser = await chromium.launch({headless:true, executablePath:process.env.CHROMIUM_EXECUTABLE || undefined, args:['--no-sandbox']});
   const page = await browser.newPage({viewport:{width:1360,height:1000}});
   const errors = [];
+  let prepareRequests = 0;
   page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/prepare') prepareRequests++;
+  });
   await page.goto(url);
   await page.waitForSelector('body[data-state="prepared"][aria-busy="false"]');
   assert.equal(new URL(page.url()).hash,'');
   const launch = new URL(url);
-  const status = await (await fetch(`${launch.origin}/api/status`, {headers:{Authorization:`Bearer ${new URLSearchParams(launch.hash.slice(1)).get('token')}`}})).json();
+  const getStatus = async () => (await fetch(`${launch.origin}/api/status`, {headers:{Authorization:`Bearer ${new URLSearchParams(launch.hash.slice(1)).get('token')}`}})).json();
+  const status = await getStatus();
+  assert.equal(await page.locator('#proposal-editor').evaluate(element => element.open), false);
+  assert.equal(await page.locator('#run-checks').isDisabled(), false);
+  assert.equal(await page.locator('#run-checks').evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return rect.top >= 0 && rect.left >= 0 && rect.bottom <= innerHeight && rect.right <= innerWidth;
+  }), true, 'Prepared demo actions must be visible without scrolling');
+
+  // Reproduce the reported trap: opening an empty template must not replace
+  // the existing demo, and discarding that draft must restore usable actions.
+  await page.locator('#proposal-editor > summary').click();
+  await page.locator('#template').click();
+  await page.locator('#prepare').click();
+  await page.waitForSelector('#status-message[data-tone="error"]');
+  assert.match(await page.locator('#status-message').textContent(), /пуст|changes/iu);
+  assert.equal(prepareRequests, 0, 'Empty draft should be explained before requesting preparation');
+  assert.equal(await page.locator('#run-checks').isDisabled(), true);
+  assert.equal((await getStatus()).proposal.digest, status.proposal.digest);
+  await page.locator('#discard-draft').click();
+  await page.waitForFunction(() => !document.getElementById('run-checks').disabled);
+  assert.equal(await page.locator('#proposal-editor').evaluate(element => element.open), false);
+  assert.equal(await page.locator('#file-list button').count(), 3);
+  assert.equal((await getStatus()).proposal.digest, status.proposal.digest);
+
   const input = {schemaVersion:1, id:'browser-review-2', title:status.proposal.title, baseCommit:status.baseCommit,
     changes:status.proposal.changes.map(item => ({path:item.path,operation:'write',text:item.after}))};
+  await page.locator('#proposal-editor > summary').click();
   await page.locator('#proposal-file').setInputFiles({name:'proposal.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(input))});
   await page.waitForFunction(() => document.getElementById('proposal-json').value.includes('browser-review-2'));
   assert.equal(await page.locator('#run-checks').isDisabled(),true);
@@ -64,7 +93,7 @@ try {
   assert.equal(git('status','--porcelain'),'');
   assert.deepEqual(errors,[]);
   if (process.env.PROJECT_SCREENSHOT) await page.screenshot({path:process.env.PROJECT_SCREENSHOT,fullPage:true});
-  console.log('PASS: project browser — three-file preview, checks, branch publication, Undo/Redo, original files intact');
+  console.log('PASS: project browser — visible demo actions, empty-draft recovery, three-file preview, checks, branch publication, Undo/Redo, original files intact');
 } finally {
   if (browser) await browser.close();
   if (demo.exitCode === null) {const ended=once(demo,'exit');demo.kill('SIGTERM');await ended;}
