@@ -6,7 +6,7 @@ import re
 import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
-CATEGORIES = ('src', 'template', 'tests', 'scripts', 'docs', '.github')
+CATEGORIES = ('src', 'project-ui', 'template', 'tests', 'scripts', 'docs', '.github')
 FILES = ('README.md', 'DETERMINISM.md', 'AGENTS.md', '.gitignore', 'package.json', 'package-lock.json')
 
 

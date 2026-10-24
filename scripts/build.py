@@ -36,6 +36,20 @@ def write_archive(destination, files):
             archive.writestr(info, data)
 
 
+def project_files():
+    names = ['package.json', 'README.md', 'docs/PROJECT-PILOT.md',
+             'scripts/project-server.mjs', 'scripts/project-demo.mjs']
+    for directory in ('src/core', 'src/project', 'project-ui'):
+        names.extend(p.relative_to(ROOT).as_posix() for p in (ROOT / directory).rglob('*') if p.is_file())
+    files = {}
+    for name in sorted(names):
+        path = ROOT / name
+        if path.is_symlink():
+            raise ValueError(f'Symlink in project pilot: {name}')
+        files[name] = path.read_bytes()
+    return files
+
+
 def build():
     files, version = source_files()
     output = ROOT / 'dist'
@@ -59,7 +73,16 @@ def build():
         'files': {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
     }
     (output / 'build-manifest.json').write_text(json.dumps(record, sort_keys=True, indent=2) + '\n')
+    pilot_files = project_files()
+    pilot_archive = output / f'project-pilot-{version}.zip'
+    write_archive(pilot_archive, pilot_files)
+    (output / 'project-build-manifest.json').write_text(json.dumps({
+        'schemaVersion': 1, 'version': version, 'archive': pilot_archive.name,
+        'archiveSha256': hashlib.sha256(pilot_archive.read_bytes()).hexdigest(),
+        'files': {n: hashlib.sha256(b).hexdigest() for n, b in sorted(pilot_files.items())},
+    }, sort_keys=True, indent=2) + '\n')
     print(archive)
+    print(pilot_archive)
 
 
 if __name__ == '__main__':

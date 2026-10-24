@@ -8,7 +8,7 @@ import re
 import subprocess
 import tempfile
 import zipfile
-from build import ROOT, source_files, write_archive
+from build import ROOT, source_files, write_archive, project_files
 
 
 class Links(HTMLParser):
@@ -72,6 +72,25 @@ def main():
     record = json.loads((ROOT / 'dist/build-manifest.json').read_text())
     assert record['archiveSha256'] == hashlib.sha256(archive.read_bytes()).hexdigest()
     assert record['files'] == {n: hashlib.sha256(b).hexdigest() for n, b in sorted(files.items())}
+    pilot = project_files()
+    pilot_archive = ROOT / 'dist' / f'project-pilot-{version}.zip'
+    with zipfile.ZipFile(pilot_archive) as z:
+        assert set(z.namelist()) == set(pilot)
+        for name, data in pilot.items():
+            assert z.read(name) == data
+            if name.endswith('.mjs'):
+                subprocess.run(['node', '--check', str(ROOT / name)], check=True)
+        with tempfile.TemporaryDirectory() as directory:
+            z.extractall(directory)
+            cli = subprocess.run(['node', str(Path(directory) / 'scripts/project-server.mjs')],
+                                 capture_output=True, text=True)
+            assert cli.returncode == 1 and '--project' in cli.stderr, 'Packaged CLI failed to load'
+            second = Path(directory) / 'repeat.zip'
+            write_archive(second, dict(reversed(list(pilot.items()))))
+            assert second.read_bytes() == pilot_archive.read_bytes()
+    pilot_record = json.loads((ROOT / 'dist/project-build-manifest.json').read_text())
+    assert pilot_record['archiveSha256'] == hashlib.sha256(pilot_archive.read_bytes()).hexdigest()
+    assert pilot_record['files'] == {n: hashlib.sha256(b).hexdigest() for n, b in sorted(pilot.items())}
     print('PASS: source boundaries, local resources, manifest, exact payload and repeatable ZIP bytes')
 
 

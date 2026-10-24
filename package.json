@@ -1,17 +1,25 @@
 {
   "name": "deterministic-extensions",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
   "description": "Local-first extension foundation with explicit deterministic contracts",
-  "engines": {"node": ">=24.15.0"},
+  "engines": {
+    "node": ">=24.15.0"
+  },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "build": "python3 scripts/build.py",
     "check": "python3 scripts/check.py",
     "verify": "npm test && npm run build && npm run check",
-    "test:browser": "node scripts/check-browser.mjs"
+    "test:browser": "node scripts/check-browser.mjs",
+    "project:serve": "node scripts/project-server.mjs",
+    "project:demo": "node scripts/project-demo.mjs",
+    "test:project-browser": "node scripts/check-project-browser.mjs",
+    "test:drydock-browser": "node scripts/check-drydock-browser.mjs"
   },
-  "devDependencies": {"playwright": "1.62.1"}
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
 }

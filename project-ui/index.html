@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deterministic Projects — локальный пилот</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div><p class="eyebrow">DETERMINISTIC PROJECTS <span class="pill">Локальный пилот</span></p><h1>Изменения всего проекта</h1><p class="intro">Проверьте набор изменений, запустите проверки и сохраните результат в отдельной ветке Git.</p></div>
+      <button id="refresh" class="secondary" type="button">Обновить состояние</button>
+    </header>
+
+    <section class="project-card" aria-label="Текущий проект">
+      <div><span class="caption">Проект</span><strong id="project-path">Подключение…</strong></div>
+      <div><span class="caption">Базовый коммит</span><code id="base-commit">—</code></div>
+      <span id="state" class="state">Подключение</span>
+    </section>
+    <p id="status-message" role="status" aria-live="polite">Получаем состояние локального проекта…</p>
+
+    <section class="card workflow" aria-label="Действия с набором">
+      <h2>Просмотр → Проверки → Ветка → Отмена → Восстановление</h2>
+      <p id="workflow-hint">Подключаем проект…</p>
+      <div class="toolbar actions">
+        <a class="review-link" href="#review">Просмотреть файлы</a>
+        <button id="run-checks" class="secondary" type="button">Запустить выбранные проверки</button>
+        <button id="publish" type="button">Создать ветку с изменениями</button>
+        <button id="undo" class="secondary" type="button">Отменить создание ветки</button>
+        <button id="redo" class="secondary" type="button">Восстановить ветку</button>
+      </div>
+    </section>
+
+    <details id="proposal-editor" class="card" open>
+      <summary>Загрузить или изменить JSON задачи</summary>
+      <div class="section-heading"><span class="step">1</span><div><h2>Подготовьте изменения</h2><p>Один JSON-файл описывает задачу и полное новое содержимое каждого изменяемого файла.</p></div></div>
+      <div class="toolbar">
+        <label class="file-picker">Загрузить JSON<input id="proposal-file" type="file" accept=".json,application/json"></label>
+        <button id="template" class="secondary" type="button">Вставить пустой шаблон</button>
+      </div>
+      <label for="proposal-json" class="caption">Набор изменений</label>
+      <textarea id="proposal-json" spellcheck="false" rows="10" placeholder="Загрузите JSON или начните с пустого шаблона. Поле changes нужно заполнить реальными изменениями."></textarea>
+      <p class="hint">Пути считаются от корня проекта. Операция write заменяет файл целиком, delete удаляет файл. baseCommit должен совпадать с базовым коммитом. Исходные рабочие файлы остаются на месте.</p>
+      <div class="toolbar">
+        <button id="prepare" type="button">Подготовить и показать изменения</button>
+        <button id="discard-draft" class="secondary" type="button" hidden>Вернуться к подготовленному набору</button>
+      </div>
+    </details>
+
+    <section id="review" class="card">
+      <div class="section-heading"><span class="step">2</span><div><h2 id="task-title">Просмотрите файлы</h2><p id="change-count">Набор изменений ещё не подготовлен.</p></div></div>
+      <div class="review-layout">
+        <nav id="file-list" aria-label="Изменённые файлы"><p class="empty">Здесь появится список файлов.</p></nav>
+        <div class="file-review">
+          <div class="file-heading"><strong id="selected-path">Выберите файл</strong><span id="file-kind" class="pill"></span></div>
+          <div class="code-columns"><section><h3>До <span id="before-note"></span></h3><pre id="before" tabindex="0" aria-label="Содержимое до изменения"></pre></section><section><h3>После <span id="after-note"></span></h3><pre id="after" tabindex="0" aria-label="Содержимое после изменения"></pre></section></div>
+        </div>
+      </div>
+      <details class="metadata"><summary>Идентификатор подготовленного набора</summary><code id="proposal-digest">—</code></details>
+    </section>
+
+    <section class="card">
+      <div class="section-heading"><span class="step">3</span><div><h2>Проверьте и сохраните</h2><p>Новая ветка содержит все подготовленные изменения. Текущая ветка проекта не переключается.</p></div></div>
+      <div class="notice"><strong>Перед запуском проверок</strong><p>Выполняются команды, выбранные при запуске локального сервера. Они запускаются во временной копии проекта с правами вашей учётной записи. Временная копия не является песочницей. Запускайте проверки только для кода, которому доверяете.</p></div>
+      <section id="drydock-panel" hidden><h3>Drydock: весь снимок проекта</h3>
+      <p>Завершённый запуск не означает отсутствие уязвимостей. Проверьте находки, исключения и неизвестные результаты.</p>
+      <button id="run-drydock" class="secondary" type="button">Проверить проект в Drydock</button>
+      <p id="drydock-status"></p><details><summary>Находки, покрытие и полный отчёт</summary><pre id="drydock-report"></pre></details>
+      <label><input id="drydock-reviewed" type="checkbox"> Я просмотрел этот отчёт и его ограничения</label></section>
+      <div id="checks" aria-label="Результаты проверок"><p class="empty">Загрузка списка проверок…</p></div>
+      <p class="hint">Проверки не должны создавать или менять файлы в копии проекта. Зависимости из node_modules не копируются. Обычные команды тестов необязательны. Если подключён Drydock, его отчёт и подтверждение просмотра обязательны.</p>
+      <div id="branch-result" class="branch-result" hidden><span class="caption">Ветка с результатом</span><strong id="branch-name"></strong><p id="branch-note"></p><code id="checkout-command"></code><p class="hint">Команда показана для ручного перехода. После перехода на эту ветку её отмена из пилота будет недоступна.</p></div>
+    </section>
+
+    <footer>Работает локально, без LLM и платных AI API. Для начала нужен Git-проект без несохранённых изменений. Пилот управляет одной задачей за сессию; для следующей задачи запустите новую сессию.</footer>
+  </main>
+</body>
+</html>

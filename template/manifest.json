@@ -2,10 +2,14 @@
   "manifest_version": 3,
   "minimum_chrome_version": "138",
   "name": "Deterministic Extensions — Text Review",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "An offline reference extension for repeatable text comparison, guarded edits, undo and byte-preserving downloads.",
-  "background": {"service_worker": "background.js"},
-  "action": {"default_title": "Open deterministic text review"},
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open deterministic text review"
+  },
   "content_security_policy": {
     "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; worker-src 'self'; base-uri 'none'; form-action 'none'"
   }
