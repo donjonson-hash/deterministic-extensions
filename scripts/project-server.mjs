@@ -4,8 +4,8 @@ import {startProjectServer} from '../src/project/server.mjs';
 const args = process.argv.slice(2), options = {};
 for (let index = 0; index < args.length; index += 2) {
   const key = args[index], value = args[index + 1];
-  if (!['--project', '--checks', '--proposal'].includes(key) || !value || options[key]) {
-    console.error('Usage: node scripts/project-server.mjs --project /path/to/repo [--checks checks.json] [--proposal proposal.json]');
+  if (!['--project', '--checks', '--proposal', '--drydock'].includes(key) || !value || options[key]) {
+    console.error('Usage: node scripts/project-server.mjs --project /path/to/repo [--checks checks.json] [--proposal proposal.json] [--drydock drydock.json]');
     process.exit(1);
   }
   options[key] = value;
@@ -17,7 +17,8 @@ if (!options['--project']) {
 try {
   const checks = options['--checks'] ? JSON.parse(await readFile(options['--checks'], 'utf8')) : [];
   const proposal = options['--proposal'] ? JSON.parse(await readFile(options['--proposal'], 'utf8')) : undefined;
-  const app = await startProjectServer({projectPath:options['--project'], checks, proposal});
+  const drydock = options['--drydock'] ? JSON.parse(await readFile(options['--drydock'],'utf8')) : null;
+  const app = await startProjectServer({projectPath:options['--project'], checks, proposal, drydock});
   console.log(`Откройте в браузере:\n${app.url}\nДля остановки нажмите Ctrl+C.`);
   let closing = false;
   const close = async () => { if (closing) return; closing = true; await app.close(); process.exit(0); };

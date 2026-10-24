@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "138",
   "name": "Deterministic Extensions — Text Review",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An offline reference extension for repeatable text comparison, guarded edits, undo and byte-preserving downloads.",
   "background": {
     "service_worker": "background.js"

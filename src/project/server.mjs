@@ -10,8 +10,8 @@ const assets = new Map([
 ]);
 const MAX_BODY = 2 * 1024 * 1024;
 
-export async function startProjectServer({projectPath, checks = [], proposal, port = 0}) {
-  const session = await createProjectSession({projectPath, checks});
+export async function startProjectServer({projectPath, checks = [], drydock = null, proposal, port = 0}) {
+  const session = await createProjectSession({projectPath, checks, drydock});
   if (proposal) {
     try { await session.prepare(proposal); }
     catch (error) { await session.close(); throw error; }
@@ -46,7 +46,7 @@ export async function startProjectServer({projectPath, checks = [], proposal, po
           return json(401, {error:'Откройте ссылку с ключом сессии из терминала.'});
         }
         if (request.method === 'GET' && url.pathname === '/api/status') return json(200, await session.status());
-        const actions = {'/api/prepare':'prepare', '/api/check':'runChecks', '/api/publish':'publish', '/api/undo':'undo', '/api/redo':'redo'};
+        const actions = {'/api/prepare':'prepare', '/api/check':'runChecks', '/api/drydock':'runDrydock', '/api/publish':'publish', '/api/undo':'undo', '/api/redo':'redo'};
         const action = actions[url.pathname];
         if (request.method !== 'POST' || !action) return json(404, {error:'Неизвестная операция.'});
         if (request.headers['content-type']?.split(';')[0].trim() !== 'application/json') return json(415, {error:'Ожидается application/json.'});
@@ -59,14 +59,14 @@ export async function startProjectServer({projectPath, checks = [], proposal, po
         let body;
         try { body = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(Buffer.concat(chunks))); }
         catch { return json(400, {error:'Некорректный JSON или UTF-8.'}); }
-        if (action !== 'prepare' && (!body || Array.isArray(body) || typeof body.expectedDigest !== 'string' || Object.keys(body).some(key => key !== 'expectedDigest'))) {
+        if (action !== 'prepare' && (!body || Array.isArray(body) || typeof body.expectedDigest !== 'string' || Object.keys(body).some(key => key !== 'expectedDigest' && !(action === 'publish' && key === 'expectedEvidenceDigest')))) {
           return json(400, {error:'Укажите expectedDigest просмотренного набора.'});
         }
         const result = await serial(async () => {
           if (action !== 'prepare' && (await session.status()).proposal?.digest !== body.expectedDigest) {
             throw new Error('Набор изменился в другой вкладке. Обновите состояние и просмотрите его заново.');
           }
-          return session[action](...(action === 'prepare' ? [body] : []));
+          return session[action](...(action === 'prepare' ? [body] : action === 'publish' ? [{expectedEvidenceDigest:body.expectedEvidenceDigest}] : []));
         });
         return json(200, result);
       }

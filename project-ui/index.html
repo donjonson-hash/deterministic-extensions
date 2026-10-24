@@ -64,8 +64,13 @@
     <section class="card">
       <div class="section-heading"><span class="step">3</span><div><h2>Проверьте и сохраните</h2><p>Новая ветка содержит все подготовленные изменения. Текущая ветка проекта не переключается.</p></div></div>
       <div class="notice"><strong>Перед запуском проверок</strong><p>Выполняются команды, выбранные при запуске локального сервера. Они запускаются во временной копии проекта с правами вашей учётной записи. Временная копия не является песочницей. Запускайте проверки только для кода, которому доверяете.</p></div>
+      <section id="drydock-panel" hidden><h3>Drydock: весь снимок проекта</h3>
+      <p>Завершённый запуск не означает отсутствие уязвимостей. Проверьте находки, исключения и неизвестные результаты.</p>
+      <button id="run-drydock" class="secondary" type="button">Проверить проект в Drydock</button>
+      <p id="drydock-status"></p><details><summary>Находки, покрытие и полный отчёт</summary><pre id="drydock-report"></pre></details>
+      <label><input id="drydock-reviewed" type="checkbox"> Я просмотрел этот отчёт и его ограничения</label></section>
       <div id="checks" aria-label="Результаты проверок"><p class="empty">Загрузка списка проверок…</p></div>
-      <p class="hint">Проверки не должны создавать или менять файлы в копии проекта. Зависимости из node_modules не копируются. Если проверки не настроены, результат сохраняется без автоматической проверки.</p>
+      <p class="hint">Проверки не должны создавать или менять файлы в копии проекта. Зависимости из node_modules не копируются. Обычные команды тестов необязательны. Если подключён Drydock, его отчёт и подтверждение просмотра обязательны.</p>
       <div id="branch-result" class="branch-result" hidden><span class="caption">Ветка с результатом</span><strong id="branch-name"></strong><p id="branch-note"></p><code id="checkout-command"></code><p class="hint">Команда показана для ручного перехода. После перехода на эту ветку её отмена из пилота будет недоступна.</p></div>
     </section>
 

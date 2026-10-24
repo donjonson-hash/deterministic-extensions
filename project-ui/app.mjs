@@ -6,6 +6,7 @@ let current = null;
 let selectedPath = null;
 let busy = false;
 let draftDirty = false;
+let reviewedEvidence = null;
 
 const stateLabels = { ready: 'Готов к работе', prepared: 'Изменения подготовлены', published: 'Ветка создана', undone: 'Создание ветки отменено' };
 const kindLabels = { added: 'Добавлен', modified: 'Изменён', deleted: 'Удалён', removed: 'Удалён', changed: 'Изменён' };
@@ -27,6 +28,9 @@ function controls() {
   $('discard-draft').disabled = !available;
   $('run-checks').disabled = !available || !prepared || draftDirty || !current?.checks?.length;
   $('publish').disabled = !available || !prepared || draftDirty || (current?.checks ?? []).some((check) => check.status !== 'passed');
+  $('publish').disabled ||= Boolean(current?.drydock?.enabled && (current.drydock.state !== 'completed' || reviewedEvidence !== current.drydock.evidence?.reportDigest));
+  $('run-drydock').disabled = !available || !prepared || draftDirty;
+  $('drydock-reviewed').disabled = !available || !prepared || draftDirty || current?.drydock?.state !== 'completed';
   $('undo').disabled = !available || current?.state !== 'published';
   $('redo').disabled = !available || current?.state !== 'undone';
   $('workflow-hint').textContent = draftDirty ? 'Черновик изменён. Подготовьте его или вернитесь к уже подготовленному набору.'
@@ -83,6 +87,10 @@ function showFile(path) {
 function render(next) {
   const firstLoad = !current;
   current = next;
+  if (reviewedEvidence !== current.drydock?.evidence?.reportDigest) {reviewedEvidence = null; $('drydock-reviewed').checked = false;}
+  $('drydock-panel').hidden = !current.drydock?.enabled;
+  $('drydock-status').textContent = current.drydock?.state === 'completed' ? 'Запуск завершён. Покрытие частичное; требуется просмотр отчёта.' : current.drydock?.error || 'Drydock ещё не выполнен для этого набора.';
+  $('drydock-report').textContent = current.drydock?.evidence ? JSON.stringify(current.drydock.evidence,null,2) : '';
   if (firstLoad) $('proposal-editor').open = !current.proposal;
   if (current.proposal && !draftDirty) restoreProposalText();
   document.body.dataset.state = current.state;
@@ -202,7 +210,13 @@ $('run-checks').addEventListener('click', () => act('Выполняются ло
   render(await api('check', { expectedDigest: current.proposal?.digest }));
   if ((current.checks ?? []).some((check) => check.status !== 'passed')) throw new Error('Не все проверки пройдены. Подробности приведены ниже.');
 }, 'Выбранные проверки успешно завершены.'));
-$('publish').addEventListener('click', () => act('Создаём отдельную ветку…', async () => render(await api('publish', { expectedDigest: current.proposal?.digest })), 'Ветка с изменениями создана. Рабочие файлы исходного проекта не заменены.'));
+$('drydock-reviewed').addEventListener('change',()=> {reviewedEvidence = $('drydock-reviewed').checked ? current?.drydock?.evidence?.reportDigest : null; controls();});
+$('run-drydock').addEventListener('click',()=>act('Drydock проверяет временную копию проекта…',async()=> {
+  reviewedEvidence=null;$('drydock-reviewed').checked=false;
+  render(await api('drydock',{expectedDigest:current.proposal?.digest}));
+  if(current.drydock.state !== 'completed') throw new Error(current.drydock.error || 'Drydock недоступен');
+},'Drydock завершён. Просмотрите полный отчёт и ограничения.'));
+$('publish').addEventListener('click', () => act('Создаём отдельную ветку…', async () => render(await api('publish', { expectedDigest: current.proposal?.digest, ...(current.drydock?.enabled ? {expectedEvidenceDigest:reviewedEvidence} : {}) })), 'Ветка с изменениями создана. Рабочие файлы исходного проекта не заменены.'));
 $('undo').addEventListener('click', () => act('Отменяем создание ветки…', async () => render(await api('undo', { expectedDigest: current.proposal?.digest })), 'Создание ветки отменено.'));
 $('redo').addEventListener('click', () => act('Восстанавливаем ветку…', async () => render(await api('redo', { expectedDigest: current.proposal?.digest })), 'Ветка восстановлена.'));
 

@@ -5,8 +5,9 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { canonicalJson } from '../core/canonical.mjs';
+import {scanDrydock, validateDrydockConfig} from './drydock.mjs';
 
-export const PROJECT_POLICY = 'project-branch-v1';
+export const PROJECT_POLICY = 'project-branch-v2';
 export const PROJECT_LIMITS = Object.freeze({
   files: 1000, bytes: 20 * 1024 * 1024, changes: 1000,
   checks: 8, checkTimeoutMs: 30_000, checkOutputBytes: 64 * 1024,
@@ -149,8 +150,9 @@ function gitRecords(buffer) {
   return value.split('\0').filter(Boolean);
 }
 
-export async function createProjectSession({ projectPath, checks = [] } = {}) {
+export async function createProjectSession({ projectPath, checks = [], drydock = null } = {}) {
   if (typeof projectPath !== 'string' || !projectPath) fail('projectPath is required');
+  const drydockConfig = drydock === null ? null : validateDrydockConfig(drydock);
   const configuredChecks = JSON.parse(canonicalJson(checks));
   if (!Array.isArray(configuredChecks) || configuredChecks.length > PROJECT_LIMITS.checks) fail('Invalid checks');
   for (const item of configuredChecks) {
@@ -205,11 +207,12 @@ export async function createProjectSession({ projectPath, checks = [] } = {}) {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'det-project-'));
   let state = 'ready', proposal = null, candidate = null, candidatePath = null, branch = null, commit = null;
   let closed = false;
+  let drydockResult = {enabled: Boolean(drydockConfig), state:'not-run', evidence:null, error:null};
   let checkResults = configuredChecks.map(({ name }) => ({ name, status: 'not-run', output: '' }));
   const consumedIds = new Set();
   function status() {
     return structuredClone({ projectPath: root, baseCommit, baseTree, snapshotDigest: baseSnapshot,
-      policy: PROJECT_POLICY, limits: PROJECT_LIMITS, state, proposal, checks: checkResults, branch, commit, candidatePath });
+      policy: PROJECT_POLICY, limits: PROJECT_LIMITS, state, proposal, checks: checkResults, drydock:drydockResult, branch, commit, candidatePath });
   }
   async function verifyCandidate() {
     if (!candidatePath || !candidate) fail('Prepare a proposal first');
@@ -273,7 +276,7 @@ export async function createProjectSession({ projectPath, checks = [] } = {}) {
     // File-to-directory transitions are intentionally outside this pilot contract.
     validatePaths(new Map([...base, ...next]));
     preview.sort((a, b) => lexical(a.path, b.path));
-    const prepared = { id: value.id, title: value.title,
+    const prepared = { id: value.id, title: value.title, candidateSnapshotDigest: snapshotDigest(next),
       digest: hash(canonicalJson({ policy: PROJECT_POLICY, baseCommit, baseTree,
         snapshotDigest: baseSnapshot, id: value.id, title: value.title, changes: preview })), changes: preview };
     const nextPath = await fs.mkdtemp(path.join(temp, 'candidate-'));
@@ -287,12 +290,14 @@ export async function createProjectSession({ projectPath, checks = [] } = {}) {
     const previousPath = candidatePath;
     candidatePath = nextPath; candidate = next; proposal = prepared; state = 'prepared';
     consumedIds.add(value.id);
+    drydockResult = {enabled:Boolean(drydockConfig),state:'not-run',evidence:null,error:null};
     checkResults = configuredChecks.map(({ name }) => ({ name, status: 'not-run', output: '' }));
     if (previousPath) await fs.rm(previousPath, { recursive: true, force: true });
     return status();
   }
   async function runChecks() {
     if (state !== 'prepared') fail('Checks require a prepared proposal');
+    drydockResult = {enabled:Boolean(drydockConfig),state:'not-run',evidence:null,error:null};
     await verifySource();
     await verifyCandidate();
     checkResults = configuredChecks.map(({ name }) => ({ name, status: 'not-run', output: '' }));
@@ -312,14 +317,36 @@ export async function createProjectSession({ projectPath, checks = [] } = {}) {
     }
     return status();
   }
+  async function runDrydock() {
+    if (state !== 'prepared' || !drydockConfig) fail('Drydock requires a configured provider and prepared proposal');
+    drydockResult = {enabled:true,state:'not-run',evidence:null,error:null};
+    try {
+      await verifySource(); await verifyCandidate();
+      const candidateDigest = snapshotDigest(candidate);
+      const evidence = await scanDrydock({config:drydockConfig,candidatePath,
+        candidateDigest,proposalDigest:proposal.digest});
+      await verifySource(); await verifyCandidate();
+      if (evidence.candidateDigest !== candidateDigest || evidence.proposalDigest !== proposal.digest)
+        fail('Drydock evidence does not match the reviewed candidate');
+      drydockResult = {enabled:true,state:'completed',evidence,error:null};
+    } catch(error) {
+      drydockResult = {enabled:true,state:'failed',evidence:null,error:error.message};
+    }
+    return status();
+  }
   async function assertNotCheckedOut(ref) {
     const output = gitRecords((await git(root, ['worktree', 'list', '--porcelain', '-z'])).stdout);
     if (output.includes(`branch ${ref}`)) fail('Published branch is checked out in a worktree; switch that worktree before Undo/Redo');
   }
-  async function publish() {
+  async function publish({expectedEvidenceDigest} = {}) {
     if (state === 'published') return status(); // Retry is idempotent; never creates another commit.
     if (state !== 'prepared') fail('Publish requires a prepared proposal; use Redo for an undone branch');
     if (checkResults.some(item => item.status !== 'passed')) fail('Every configured check must pass before publication');
+    if (drydockConfig && (drydockResult.state !== 'completed' || !drydockResult.evidence
+        || drydockResult.evidence.proposalDigest !== proposal.digest
+        || drydockResult.evidence.candidateDigest !== snapshotDigest(candidate)
+        || expectedEvidenceDigest !== drydockResult.evidence.reportDigest))
+      fail('Review the current Drydock evidence and confirm its digest before publication');
     await verifySource();
     await verifyCandidate();
     const nextBranch = `deterministic/${proposal.digest.slice(0, 24)}`;
@@ -376,7 +403,8 @@ export async function createProjectSession({ projectPath, checks = [] } = {}) {
   }
   return Object.freeze({
     status: () => enqueue(status), prepare: input => enqueue(() => prepare(input)),
-    runChecks: () => enqueue(runChecks), publish: () => enqueue(publish),
+    runChecks: () => enqueue(runChecks), runDrydock: () => enqueue(runDrydock),
+    publish: options => enqueue(() => publish(options)),
     undo: () => enqueue(undo), redo: () => enqueue(redo),
     close: () => enqueue(async () => { await fs.rm(temp, { recursive: true, force: true }); closed = true; }),
   });

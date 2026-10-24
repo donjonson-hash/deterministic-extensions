@@ -77,3 +77,6 @@ footer { padding: 2px 6px 14px; max-width: 1000px; font-size: .8rem; color: #728
 #proposal-editor[open] > summary { margin-bottom: 22px; }
 #review { scroll-margin-top: 210px; }
 @media (max-width: 900px) { .workflow { position: static; } #review { scroll-margin-top: 16px; } }
+
+[hidden] {display:none !important;}
+#drydock-report {max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;}

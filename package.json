@@ -1,6 +1,6 @@
 {
   "name": "deterministic-extensions",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
@@ -16,7 +16,8 @@
     "test:browser": "node scripts/check-browser.mjs",
     "project:serve": "node scripts/project-server.mjs",
     "project:demo": "node scripts/project-demo.mjs",
-    "test:project-browser": "node scripts/check-project-browser.mjs"
+    "test:project-browser": "node scripts/check-project-browser.mjs",
+    "test:drydock-browser": "node scripts/check-drydock-browser.mjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"
